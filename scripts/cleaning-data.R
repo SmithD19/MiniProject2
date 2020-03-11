@@ -126,7 +126,7 @@ data <- bind_cols(loc, abun, struc, wchem, veg)
 
 tidydata <- 
   data %>% 
-  pivot_longer(cols = colnames(abun),
+  pivot_longer(cols = colnames(abun)[-1],
                names_to = "species",
                values_to = "abundance")
 
