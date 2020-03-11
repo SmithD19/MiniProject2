@@ -139,12 +139,15 @@ m1.9 <- brm(
 
 conditional_effects(m1.9)
 
-#+ non-varying intercept
+#+ varying intercept
 m2.1 <- brm(
-  bf(abundance ~ species:shaded),
+  bf(abundance ~ 1 + shaded),
   family = poisson(),
+  # prior = prior(exponential(), coef = shaded),
   data = df,
-  cores = 4
+  cores = 2, 
+  chains = 2,
+  iter = 500
 )
 
 conditional_effects(m2.1)
@@ -154,20 +157,39 @@ m2.2 <- brm(
   bf(abundance ~ 1 + species:shaded),
   family = poisson(),
   data = df,
-  cores = 4
+  cores = 2, chains = 2, iter = 500
 )
 
 conditional_effects(m2.2)
 
+
+#+ varying intercept 
+m2.22 <- brm(
+  bf(abundance ~ 1 + species:cover_duckweed),
+  family = poisson(),
+  data = df,
+  cores = 2, chains = 2, iter = 500
+)
+
+conditional_effects(m2.22)
+
+#+ varying intercept 
+m2.23 <- brm(
+  bf(abundance ~ 1 + species:cover_carex + (1|site/plot)),
+  family = poisson(),
+  data = df,
+  cores = 2, chains = 2, iter = 200
+)
+
+conditional_effects(m2.23)
+
 #+ varying intercept 
 m2.3 <- brm(
-  bf(abundance ~ 1 + species:depth),
-  family = gaussian(),
+  bf(abundance ~ 1 + species),
+  family = poisson(),
   prior = prior(normal(0,.2)),
-  data = df %>% mutate(depth = scale(depth),
-                       abundance = scale(abundance)),
-  cores = 4
-)
+  data = df,
+  cores = 4)
 
 conditional_effects(m2.3)
 
