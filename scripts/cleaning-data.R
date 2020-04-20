@@ -1,5 +1,7 @@
 library(tidyverse)
 
+df <- read_csv("data/full-data.csv")
+
 rawdat <- read_csv("boral_data.csv")
 rawdat$uid = 1:nrow(rawdat)
 
@@ -37,7 +39,7 @@ loc <- rawdat %>%
          season,
          location, 
          management,
-         dip_point) %>%
+         dip_point, ) %>%
   # factor them
   mutate(site = site %>% as.factor,
          plot = plot %>% as.factor,
@@ -130,5 +132,8 @@ tidydata <-
                names_to = "species",
                values_to = "abundance")
 
+
+
+df %>% select()
 
 
