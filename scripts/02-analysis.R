@@ -19,11 +19,11 @@ library(tidyverse)
 dftidy_long %>% skimr::skim()
 
 dftidy_long %>% 
-  ggplot(aes(x = shaded, y = abundance, col = management)) +
-  geom_smooth()
+  ggplot(aes(x = season, y = log(abundance))) +
+  geom_boxplot(method = "lm")
 
 # 1.1 management and abundance
-f1.1 <- bf(abundance ~ management*species + (1|plot/site))
+f1.1 <- bf(abundance ~ management + species + season)
 
 get_prior(f1.1, data = dftidy_long)
 
@@ -57,4 +57,12 @@ m1.2 <- brm(data = dftidy_long, family = negbinomial(),
 conditional_effects(m1.2)
 
 pp_check(m1.2)
+
+# get rid of Total/Row/Abundance
+preds <- colnames(dftidy_long)[c(-1, -2, -3, -4, -40)]
+
+f1.3 <- bf(paste("abundance ~"))
+
+
+
 

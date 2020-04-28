@@ -1,0 +1,264 @@
+---
+title: "Data Report on Somerset Levels Project"
+output: html_notebook
+author: "Daniel Smith"
+---
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Package list:
+
+library(tidyverse)
+library(kableExtra)
+library(knitr)
+library(ggcorrplot)
+library(patchwork)
+```
+
+```{r include=FALSE}
+# Load the processed data for exploration:
+
+load("rdat/01-processing.RData")
+```
+
+Abundances of four mosquito species larvae aggregated across all sites and plots for the years 2009-2011 and each season that was recorded. Additionally aggregated abundances are proved for all seasons, as well as a grand total of all abundances across seasons. Species *Cs. morsitans*, *Cs. cantans*, *Cs. caspius* have been removed from the analysis because they were virtually absent in all plots. 2010 is the only complete year where samples were taken throughout all seasons. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(gt)
+
+sum1 <- dftidy_long %>% 
+  # Grouping vars
+  group_by(species, year, season) %>% 
+  # Total abundance for all plots and sites
+  summarise(abundance = sum(abundance, na.rm = T)) %>%
+  # Ungroup
+  ungroup() %>% 
+  # Change names to nicer ones
+  mutate(species = case_when(
+    species == "an_claviger" ~ "An. claviger",
+    species == "an_maculipennis" ~ "An. maculipennis",
+    species == "cs_annulata" ~ "Cs. annulata",
+    species == "cx_pipiens" ~ "Cx. pipiens"
+  ),
+  season = case_when(
+    season == 1 ~ "May",
+    season == 2 ~ "Jun/Jul",
+    season == 3 ~ "Aug/Sep"
+  )) %>% 
+  # Grouping vars
+  group_by(species, year) %>%
+  # Aggregate total column
+  mutate("All Season" = sum(abundance, na.rm = T)) %>% 
+  # spread data
+  pivot_wider(names_from = season, values_from = abundance) %>% 
+  # Replace NA values with 0
+  mutate_if(is.numeric, ~ replace_na(., replace = 0)) %>% 
+  # Rename nicely
+  rename(Species = species)
+
+# vars names for easier insertion
+set1 = colnames(sum1[c(-1, -2)])
+
+# Generic starting table for summarising abundances
+tab1 <- sum1 %>% 
+  gt(rowname_col = "Species", groupname_col = c("year")) %>% 
+  tab_spanner(label = "Season", columns = vars(set1)) %>% 
+  tab_stubhead("Species")
+
+# Make formatting and other modifications
+tab1 %>% 
+  # Move columns around
+  cols_move_to_start(columns = "May") %>% 
+  cols_move_to_end("All Season") %>% 
+  # add a summary row for each year grouping
+  summary_rows(
+    groups = NULL,
+    columns = vars("Jun/Jul", "Aug/Sep", "May", "All Season"),
+    fns = list(Total = ~ sum(.)), 
+    decimals = 0) %>% 
+  
+  # this isn't working as intended: totals are wrong
+  # # Add a grand total that groups abundances across years for each season
+  # grand_summary_rows(
+  #   columns = vars(`Jun/Jul`, `Aug/Sep`, `May`, `All Season`),
+  #   fns = list(`Grand Total` = ~ sum(),
+  #              # Min = ~min(.),
+  #              Max = ~max(.),
+  #              Mean = ~ mean(.)), 
+  #   decimals = 0
+  # ) %>% 
+
+# Formatting colour, alignment and size
+opt_row_striping(TRUE) %>% 
+  opt_align_table_header(align = "center") %>% 
+  cols_width(everything() ~ px(175))
+
+```
+
+
+#### Structural characteristics of Tier 1 and Tier 3 management practices compared:
+
+Waterboard level (or freeboard) is consistently lower in tier 3 management in all seasons. This is expected and means the water is never allowed to drop below 0.35m of the land level in guidance with the tier 3 management practice. Average width of rhynes is slightly larger for tier 3 managed plots across all seasons. Depths at both the centre and proximal edges of rhynes are fairly consistent throughout both management tiers, with slight variations in season 1 and 2. 
+
+The majority of plots were recorded as pasture for tier 1 sites and rough pasture for tier 3 sites. This shows clearly the reduced grazing pressure and reduced management of rhynes in tier 3 plots as depicted by the scheme guidelines. Differences in exposure are slight, with more exposed sunny sights 
+
+```{r echo=FALSE, fig.height=11.7, fig.width=8.3, message=FALSE, warning=FALSE}
+# waterbaord level by tier and season
+p1 <- dftidy_long %>% 
+  group_by(management, season) %>% 
+  summarise(
+    Width = mean(width, na.rm = T),
+    Waterboard = mean(waterboard, na.rm = T)
+  ) %>%
+  ggplot(aes(x = season, y = Waterboard, fill = management)) +
+  geom_col(position = position_dodge()) +
+  ylab("Mean Waterboard Level (m)") +
+  xlab(NULL) +
+  # scale_fill_discrete(name = "Management",
+  #                     breaks = c("1", "3"),
+  #                     labels = c("Tier 1", "Tier 3"))
+  theme(legend.position = "none")
+
+# mean width of rhyne by tier and season
+p2 <- dftidy_long %>% 
+  group_by(management, season) %>% 
+  summarise(
+    Width = mean(width, na.rm = T),
+    Waterboard = mean(waterboard, na.rm = T)
+  ) %>%
+  ggplot(aes(x = season, y = Width, fill = management)) +
+  geom_col(position = position_dodge()) +
+  ylab("Mean Rhyne Width (m)") +
+  xlab(NULL) +
+  scale_fill_discrete(name = "Management",
+                      breaks = c("1", "3"),
+                      labels = c("Tier 1", "Tier 3"))
+
+p1.1 <- dftidy_long %>% 
+  group_by(management, season) %>% 
+  summarise(
+    centredepth = mean(centredepth, na.rm = T),
+    edgedepth = mean(edgedepth, na.rm = T)
+  ) %>%
+  ggplot(aes(x = season, y = centredepth, fill = management)) +
+  geom_col(position = position_dodge()) +
+  # geom_boxplot() +
+  ylab("Mean Centre Depth (m)") +
+  xlab("Season") +
+  scale_fill_discrete(name = "Management",
+                      breaks = c("1", "3"),
+                      labels = c("Tier 1", "Tier 3"))
+
+p2.1 <- dftidy_long %>% 
+  group_by(management, season) %>% 
+  summarise(
+    centredepth = mean(centredepth, na.rm = T),
+    edgedepth = mean(edgedepth, na.rm = T)
+  ) %>%
+  ggplot(aes(x = season, y = edgedepth, fill = management)) +
+  geom_col(position = position_dodge()) +
+  # geom_boxplot() +
+  ylab("Mean Proximal Depth (m)") +
+  xlab("Season") +
+  # scale_fill_discrete(name = "Management",
+  #                     breaks = c("1", "3"),
+  #                     labels = c("Tier 1", "Tier 3"))
+  theme(legend.position = "none")
+
+
+
+# relative frequency of being Rough or Normal Pasture for Tier 1 and tier 3
+p3 <- dftidy_wide %>% 
+  filter(landcover == "pasture" | landcover == "rough pasture") %>% 
+  count(landcover, management, year) %>% 
+  group_by(management) %>% 
+  mutate(freq = n / sum(n)) %>% 
+  ggplot(aes(x = management, y = freq, fill = landcover)) +
+  geom_col() +
+  ylab("Frequency") +
+  xlab(NULL) +
+  scale_fill_discrete(name = "Landcover Type",
+                      breaks=c("pasture", "rough pasture"),
+                      labels=c("Pasture", "Rough Pasture"))
+
+# Exposure
+p4 <- dftidy_long %>%
+  count(management, season, exposure) %>% 
+  drop_na() %>% 
+  group_by(management) %>%
+  mutate(freq = n / sum(n)) %>% 
+  ggplot(aes(x = management, y = freq, fill = exposure)) +
+  geom_col() +
+  # Formatting
+  xlab(NULL) +
+  ylab("Frequency") +
+  scale_fill_discrete(name = "Exposure", breaks = c("1", "2", "3", "4", "5"),
+        labels = c("Sun", "Partial Shade", "Shade", "Emergent Veg", "Dense Veg"))
+
+# % Shaded by season
+
+p5 <- dftidy_long %>% 
+  ggplot(aes(x = management, y = shaded * 100, fill = season)) +
+  geom_boxplot() +
+  # Formatting 
+  xlab("Management Tier") +
+  ylab("Shaded (%)") +
+  scale_fill_discrete(name = "Season")
+
+# plot with patchwork
+(p1 + p2) / (p2.1 + p1.1) / p3 / p4 / p5
+
+```
+
+
+
+#### Water chemistry characteristics:
+```{r echo=FALSE, fig.height=5.8, fig.width=8.3}
+# dftidy_long %>% 
+#   ggplot(aes(x = management, y = wtemp, fill = season)) +
+#   geom_boxplot()
+# 
+# dftidy_long %>% 
+#   ggplot(aes(x = management, y = turbidity, fill = season)) +
+#   geom_boxplot()
+# 
+# dftidy_long %>% 
+#   ggplot(aes(x = management, y = salinity, fill = season)) +
+#   geom_boxplot()
+# 
+# dftidy_long %>% 
+#   ggplot(aes(x = management, y = do, fill = season)) +
+#   geom_boxplot()
+# 
+# 
+# dftidy_long %>% 
+#   ggplot(aes(x = management, y = ph, fill = season)) +
+#   geom_boxplot()
+
+chemvar <- c("wtemp", "turbidity", "salinity", "do", "ph")
+
+chemkey <- c(do = "Dissolved Oxygen", ph = "pH", salinity = "Salinity",
+             turbidity = "Turbidity", wtemp = "Water Temperature")
+
+pw <- dftidy_long %>% 
+  select(site, management, season, plot, chemvar) %>% 
+  pivot_longer(all_of(chemvar)) %>% 
+  ggplot(aes(x = management, y = value, fill = season)) +
+  geom_boxplot() +
+  facet_wrap(~ name, scales = "free", labeller = labeller(name = chemkey)) +
+  scale_fill_discrete(name = "Season") +
+  theme(legend.position = c(.85, .25)) +
+  ylab("Value") +
+  xlab("Management Tier")
+
+pw
+
+```
+
+
+
+
+
+
+
+
+
