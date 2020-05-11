@@ -99,7 +99,7 @@ opt_row_striping(TRUE) %>%
 
 Waterboard level (or freeboard) is consistently lower in tier 3 management in all seasons. This is expected and means the water is never allowed to drop below 0.35m of the land level in guidance with the tier 3 management practice. Average width of rhynes is slightly larger for tier 3 managed plots across all seasons. Depths at both the centre and proximal edges of rhynes are fairly consistent throughout both management tiers, with slight variations in season 1 and 2. 
 
-The majority of plots were recorded as pasture for tier 1 sites and rough pasture for tier 3 sites. This shows clearly the reduced grazing pressure and reduced management of rhynes in tier 3 plots as depicted by the scheme guidelines. Differences in exposure are slight, with more exposed sunny sights 
+The majority of plots were recorded as pasture for tier 1 sites and rough pasture for tier 3 sites. This shows clearly the reduced grazing pressure and reduced management of rhynes in tier 3 plots as depicted by the scheme guidelines. Differences in exposure are slight, with more exposed sunny sights in Tier 3 managed sites and plots. Differences in shaded structure are seen between the two management sites
 
 ```{r echo=FALSE, fig.height=11.7, fig.width=8.3, message=FALSE, warning=FALSE}
 # waterbaord level by tier and season
@@ -192,7 +192,7 @@ p4 <- dftidy_long %>%
   xlab(NULL) +
   ylab("Frequency") +
   scale_fill_discrete(name = "Exposure", breaks = c("1", "2", "3", "4", "5"),
-        labels = c("Sun", "Partial Shade", "Shade", "Emergent Veg", "Dense Veg"))
+                      labels = c("Sun", "Partial Shade", "Shade", "Emergent Veg", "Dense Veg"))
 
 # % Shaded by season
 
@@ -253,6 +253,65 @@ pw <- dftidy_long %>%
 pw
 
 ```
+
+
+Correlation of abundance with numeric variables:
+```{r}
+foo <- dftidy_wide %>% 
+  select(cx_pipiens, an_maculipennis, an_claviger, cs_annulata, 
+         cover_emergent, cover_surface, cover_vertical)
+
+species <- c("cx_pipiens", "an_maculipennis", "an_claviger", "cs_annulata")
+
+foo <- dftidy_wide %>% 
+  select_if(is.numeric) %>% 
+  corrr::correlate() %>% 
+  filter(! rowname %in% species) %>%
+  select(rowname, species) %>%
+  # select(-c("row", "total", "easting", "northing")) %>% 
+  filter(! rowname %in% c("row", "total", "easting", "northing")) %>% 
+  as.data.frame() %>%
+  column_to_rownames("rowname") %>%
+  as.matrix()
+
+pmat <- ggcorrplot::cor_pmat(foo, method = "pearson")
+
+foo %>% 
+  ggcorrplot(lab = TRUE)
+
+```
+
+Abundance characteristics
+
+Tier 3 managed sites were more abundan
+```{r}
+dftidy_long %>% 
+  ggplot(aes(x = management, y = abundance, fill = season)) +
+  geom_col() +
+  facet_wrap(~ site + species)
+  
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

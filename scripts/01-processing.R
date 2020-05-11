@@ -102,6 +102,14 @@ dfsite %>%
   ggplot(aes(x = easting, y = northing, col = location)) +
   geom_point()
 
+#+ Predator Abundance Data -----
+predators <- colnames(dfraw)[98:113]
+
+dfpred <- dfraw %>%
+  # get the predator variables and row
+  select(row, fish:gammarus) %>% 
+  # if is a character only extract numbers
+  mutate_if(is.character, parse_number)
 
 #+ Temporal/Seasonal Data -----
 dfseason <- dfraw %>% 
@@ -340,13 +348,13 @@ dfveg <- dfraw %>%
 
 
 #+ Bind it together in a wide tidy format -----
-dftidy_wide <- bind_cols(dfabun, dfsite, dfstruc,
+dftidy_wide <- bind_cols(dfabun, dfsite, dfstruc, dfpred,
                          dfcoocurr, dfchem, dfseason,
                          # finalllllllyyyyy
                          dfveg) %>% 
   # Check they all line up right
   # dftidy %>% select(starts_with("row")) # Yes
-  select(-c("row1", "row2", "row3", "row4", "row5")) %>% 
+  select(-c("row1", "row2", "row3", "row4", "row5", "row6")) %>% 
   select(-cs_caspius, -cs_morsitans, -cs_cantans)
 
 #+ Arrange into long format -----

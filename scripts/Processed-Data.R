@@ -296,9 +296,10 @@ vegdat <- full_join(
   # calculate the mean height of each functional groupings plants
   foo %>% group_by(plot_id_x, date, plant, plant_measurement, functional_group, position) %>% 
     summarise(mean = mean(value, na.rm = T)) %>% 
+    mutate_all(~ replace(., is.nan(.), 0)) %>% 
     group_by(plot_id_x, date, functional_group) %>% 
     filter(plant_measurement == "height") %>% 
-    summarise(mean_height = mean(mean, na.rm = T))
+    summarise(mean_height = sum(mean, na.rm = T))
   ) %>% 
   # ungroup so plays nicely elsewhere
   ungroup() %>% 
@@ -314,9 +315,9 @@ vegdat %>%
   select(-mean_height) %>% 
   pivot_wider(names_from = functional_group, values_from = mean_cover, names_prefix = "cover_"), 
  # pivot for mean height
-vegdat %>% 
-  select(-total_cover) %>% 
-  pivot_wider(names_from = functional_group, values_from = mean_cover, names_prefix = "height_")
+vegdat %>%
+  select(-total_cover) %>%
+  pivot_wider(names_from = functional_group, values_from = mean_height, names_prefix = "height_")
 )
 
 ##################################################
@@ -340,13 +341,13 @@ dfveg <- dfraw %>%
 
 
 #+ Bind it together in a wide tidy format -----
-dftidy_wide <- bind_cols(dfabun, dfsite, dfstruc,
+dftidy_wide <- bind_cols(dfabun, dfsite, dfstruc, dfpred,
                          dfcoocurr, dfchem, dfseason,
                          # finalllllllyyyyy
                          dfveg) %>% 
   # Check they all line up right
   # dftidy %>% select(starts_with("row")) # Yes
-  select(-c("row1", "row2", "row3", "row4", "row5")) %>% 
+  select(-c("row1", "row2", "row3", "row4", "row5", "row6")) %>% 
   select(-cs_caspius, -cs_morsitans, -cs_cantans)
 
 #+ Arrange into long format -----
