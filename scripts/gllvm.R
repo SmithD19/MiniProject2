@@ -25,7 +25,7 @@ env_names <- df %>% select(buttercup:ladies_frock) %>% colnames()
 env2_names <- df %>% select(width, shaded, wtemp:ph, total_cover) %>% colnames()
 
 # Drop the value if total abundance is NA - this means data was not recorded so is useless to us
-df <- df %>% drop_na(species, cooccurrence, covariate)
+df <- df %>% drop_na()
 
 # Rows as unique sites and columns as species, First creating unique site names
 df <- df %>% unite("ID", c(site, plot, dip_point, year, season))
@@ -43,7 +43,7 @@ df <- df %>%
   mutate_at(vars(cooccurrence), as.numeric) # then numeric
 
 # Now create the matrix for community presence absence
-abun <- df %>% select(species)
+abun <- df %>% select(species_names)
 
 # Assemble an environmental covariate dataframe
 env <-  df %>% select(all_of(env2_names))
