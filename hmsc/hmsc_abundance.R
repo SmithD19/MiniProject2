@@ -138,7 +138,7 @@ abundancemodels <- list("ABU_SC" = ABU_SC, "ABU_C" = ABU_C,
                         "ABU_S" = ABU_S, "ABU_N" = ABU_N)
 
 # Test run or not ---------------------------------------------------
-test.run = T
+test.run = F
 
 if (test.run) {
   # with this option mcmc runs fast for checking
@@ -156,7 +156,7 @@ if (test.run) {
 }
 
 # Number of MCMC chains
-nChains = 4
+nChains = 8
 
 
 for (i in seq_along(abundancemodels)) {

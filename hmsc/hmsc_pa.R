@@ -139,7 +139,7 @@ pamodels <- list("PA_SC" = PA_SC, "PA_C" = PA_C,
                         "PA_S" = PA_S, "PA_N" = PA_N)
 
 # Test run or not ---------------------------------------------------
-test.run = T
+test.run = F
 
 if (test.run) {
   # with this option mcmc runs fast for checking
@@ -157,7 +157,7 @@ if (test.run) {
 }
 
 # Number of MCMC chains
-nChains = 4
+nChains = 8
 
 
 for (i in seq_along(pamodels)) {
