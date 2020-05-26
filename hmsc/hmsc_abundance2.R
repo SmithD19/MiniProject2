@@ -158,7 +158,7 @@ if (test.run) {
 }
 
 # Number of MCMC chains
-nChains = 8
+nChains = 4
 
 # Create File Path if doesnt exist
 ifelse(!dir.exists(file.path("hmsc/", "abu2_models")), dir.create(file.path("hmsc/", "abu2_models")), FALSE)
