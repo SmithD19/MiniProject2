@@ -70,7 +70,7 @@ studydesign <-  dfhmsc %>%
   # WASTED AN HOUR ON THIS
   as.data.frame()
 
-# Spatial latent random variables
+# Spatial latent random variables and structure
 rL1 <- HmscRandomLevel(units = unique(studydesign[,1]))
 rL2 <- HmscRandomLevel(units = unique(studydesign[,2]))
 

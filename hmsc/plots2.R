@@ -17,18 +17,31 @@ ABU_PredY <- m
 rm(m)
 
 # List of list for loops
-model_list <- list("PA_PredX" = PA_PredX, "PA_PredY" = PA_PredY,
-                   "ABU_PredX" = ABU_PredX, "ABU_PredY" = ABU_PredY)
+model_list <- list(
+  "PA_PredX" = PA_PredX,
+  "PA_PredY" = PA_PredY,
+  "ABU_PredX" = ABU_PredX,
+  "ABU_PredY" = ABU_PredY
+)
 
 
 # For correlations in the following for loop
 library(ggcorrplot)
 
-# Directory Creating for storing plots - If doesn't exist then create it
+## Network interaction plots
+library(igraph)
+library(ggraph)
+library(tidygraph)
+
+# colour palletes
+library(RColorBrewer)
+
+# Directory Creating for storing plots - If doesn't exist then create it in the current root
 ifelse(!dir.exists(file.path("hmsc/", "hmscplots2")), dir.create(file.path("hmsc/", "hmscplots2")), FALSE)
 
 for (i in seq_along(model_list)) {
-  plotdirectory <- file.path("hmsc/hmscplots2", names(model_list)[[i]])
+  plotdirectory <-
+    file.path("hmsc/hmscplots2", names(model_list)[[i]])
   
   # Create directory to store plots if isn't present
   if (!dir.exists(file.path(plotdirectory))) {
@@ -43,62 +56,213 @@ for (i in seq_along(model_list)) {
   
   # Plot Beta Correlations ----
   post <- getPostEstimate(model_list[[i]], parName = "Beta")
-  # Set png params
-  png(
-    filename = paste0(plotdirectory, "/Beta_", names(model_list)[[i]], ".png"),
-    res = 320,
-    units = "in",
-    width = 10,
-    height = 10
-  )
-  # Plot
-  plotBeta(
-    model_list[[i]],
-    post = post,
-    param = "Support",
-    spNamesNumbers = c(TRUE, FALSE),
-    supportLevel = 0.95,
-    split = .3
-  )
-  # Dev.off
-  dev.off()
+  
+  # Original plotBeta functionality - hard to edit at least for me
+  
+  # # Set png params
+  # png(
+  #   filename = paste0(plotdirectory, "/Beta_", names(model_list)[[i]], ".png"),
+  #   res = 320,
+  #   units = "in",
+  #   width = 10,
+  #   height = 10
+  # )
+  # # Plot
+  # plotBeta(
+  #   model_list[[i]],
+  #   post = post,
+  #   param = "Support",
+  #   spNamesNumbers = c(TRUE, FALSE),
+  #   supportLevel = 0.95,
+  #   split = .3
+  # )
+  # # Dev.off
+  # dev.off()
+  
+  # Plotting Beta associations using custom ggcorplot
+  # this was developed by extracting code from orignial plotBeta() function
+  # only works for plotBeta(param = "support)
+  # see ?plotBeta in Hmsc
+  
+  plotCustomBeta <- function(post, model){
+    # the support levels and values from the post values calculated by 
+    # getPostEstimate()
+    mbeta = post$mean
+    betaP = post$support
+    # Support level to plot
+    # Specify inside or outside?
+    supportLevel = 0.95
+    # Matrix to plot 
+    toPlot = 2 * betaP - 1
+    toPlot = toPlot * ((betaP > supportLevel) + (betaP < (1 - supportLevel)) > 0)
+    # Store as tibble/df
+    toPlot <- as.data.frame(toPlot)
+    # Give rownames
+    rownames(toPlot) <- colnames(model_list[[i]]$X)
+    # Return the matrix or tibble
+    return(toPlot)
+  }
+  
+  plotCustomBeta(post = post, model = model_list[[i]]) %>% 
+    ggcorrplot(legend.title = "Correlation",
+               title = paste("Beta Correlation 95%", names(model_list)[[i]])) +
+    xlab("Covariates") +
+    ylab("Species")
+  
+  # Save this in the correct spot and title it properly
+  ggsave(filename = paste0(plotdirectory, "/Beta_", names(model_list)[[i]], ".png"),
+         dpi = 300)
+  
   
   # Does the model have random levels?
   if (length(model_list[[i]]$rL) == 0) {
-    print(paste("No random levels to check correlations for in model:", names(model_list)[[i]]))
+    print(paste(
+      "No random levels to check correlations for in model:",
+      names(model_list)[[i]]
+    ))
     
   } else {
-    print(paste("Plotting residual correlations in random levels for model:", names(model_list)[[i]]))
+    print(paste(
+      "Plotting residual correlations in random levels for model:",
+      names(model_list)[[i]]
+    ))
     
-    # Correlations
+    # Correlations ----
     OmegaCor <- computeAssociations(model_list[[i]])
-    supportLevel = 0.95
-    
-    # These are the site level residual correlations
-    toplotsite <-
-      ((OmegaCor[[1]]$support > supportLevel) +
-         (OmegaCor[[1]]$support < (1 - supportLevel)) > 0) * OmegaCor[[1]]$mean
-
-    
-    # ggcorrplot
-    ggcorrplot(toplotsite,
-               method = "square",
-               typ = "lower",
-               title = "Site Level Residual Correlations")
-    ggsave(filename = paste0(plotdirectory, "/SiteCor_", names(model_list)[[i]], ".png"))
+    supportLevel = c(0.95, 0.75, 0.5)
     
     
-    # These are the rhyne level residual correlations
-    toplotrhyne <-
-      ((OmegaCor[[2]]$support > supportLevel) +
-         (OmegaCor[[2]]$support < (1 - supportLevel)) > 0) * OmegaCor[[2]]$mean
-
-    # Plot
-    ggcorrplot(toplotrhyne,
-               method = "square",
-               typ = "lower",
-               title = "Rhyne Level Residual Correlations")
-    ggsave(filename = paste0(plotdirectory, "/RhyneCor_", names(model_list)[[i]], ".png"))
+    # These are the site level residual correlations. Goes through three levels of support and plots all
+    # both seperately and together
+    
+    OmegaCor <- computeAssociations(model_list[[i]])
+    supportLevel = c(0.95, 0.75, 0.5)
+    
+    
+    # These are the site level residual correlations. Goes through three levels of support and plots all
+    # both seperately and together
+    
+    # Plotting loop for multiple support levels
+    for (j in seq_along(supportLevel)) {
+      # These are the site level correlations
+      toplotsite <-
+        ((OmegaCor[[1]]$support > supportLevel[[j]]) +
+           (OmegaCor[[1]]$support < (1 - supportLevel[[j]])) > 0) * OmegaCor[[1]]$mean
+      
+      # These are the rhyne level residual correlations
+      toplotrhyne <-
+        ((OmegaCor[[2]]$support > supportLevel[[j]]) +
+           (OmegaCor[[2]]$support < (1 - supportLevel[[j]])) > 0) * OmegaCor[[2]]$mean
+      
+      # Plot site level stuff -----
+      
+      # Correlation figures
+      ggcorrplot(
+        toplotsite,
+        method = "square",
+        typ = "lower",
+        title = paste0(
+          "Site Level Residual Correlations ",
+          supportLevel[[j]],
+          "% Support"
+        )
+      )
+      
+      # Save correlation figures here
+      ggsave(
+        filename = paste0(
+          plotdirectory,
+          "/SiteCor_",
+          names(model_list)[[i]],
+          "_",
+          supportLevel[[j]],
+          ".png"
+        ),
+        dpi = 300
+      )
+      
+      # Network figures
+      toplotsite %>%
+        as_tbl_graph() %>%
+        ggraph(layout = "linear", circular = TRUE) +
+        geom_node_point() +
+        geom_edge_arc(aes(color = weight), edge_width = 1) +
+        geom_node_label(aes(label = name)) +
+        scale_edge_color_gradient2(name = "Correlation") +
+        theme_graph() +
+        theme(legend.position = "bottom")
+      
+      # Save network figures here
+      ggsave(
+        filename = paste0(
+          plotdirectory,
+          "/SiteNet_",
+          names(model_list)[[i]],
+          "_",
+          supportLevel[[j]],
+          ".png"
+        ),
+        dpi = 300
+      )
+      
+      # Plot rhyne level stuff -----
+      
+      # Plot correlation figure
+      ggcorrplot(
+        toplotrhyne,
+        method = "square",
+        typ = "lower",
+        title = paste0(
+          "Rhyne Level Residual Correlations ",
+          supportLevel[[j]],
+          "% Support"
+        )
+      )
+      
+      # Save
+      ggsave(
+        filename = paste0(
+          plotdirectory,
+          "/RhyneCor_",
+          names(model_list)[[i]],
+          "_",
+          supportLevel[[j]],
+          ".png"
+        ),
+        dpi = 300
+      )
+      
+      # Plot network figure
+      toplotrhyne %>%
+        as_tbl_graph() %>%
+        ggraph(layout = "linear", circular = TRUE) +
+        geom_node_point() +
+        geom_edge_arc(aes(color = weight), edge_width = 1) +
+        geom_node_label(aes(label = name)) +
+        scale_edge_color_gradient2(name = "Correlation") +
+        theme_graph() +
+        theme(legend.position = "bottom") +
+        ggtitle(paste0(
+          "Rhyne Level Residual Correlations ",
+          supportLevel[[j]],
+          "% Support"
+        ))
+      
+      # Save
+      ggsave(
+        filename = paste0(
+          plotdirectory,
+          "/RhyneNet_",
+          names(model_list)[[i]],
+          "_",
+          supportLevel[[j]],
+          ".png"
+        ),
+        dpi = 300
+      )
+      
+    }
+    
   }
 }
 
@@ -112,7 +276,8 @@ library(ggridges)
 # A function to bind a list of uneven vectors together into a data frame
 bind_uneven <- function(x = list) {
   vectorlist <- map(x, as.vector)
-  lengthened <- map(vectorlist, `length<-`, max(lengths(vectorlist)))
+  lengthened <-
+    map(vectorlist, `length<-`, max(lengths(vectorlist)))
   bind_cols(lengthened)
 }
 
@@ -134,10 +299,15 @@ bind_uneven(effective_samples_Beta) %>%
   ggplot(aes(x = name, y = value)) +
   geom_boxplot() +
   xlab("Model Type") +
-  ylab("Effective Sample Size") + 
+  ylab("Effective Sample Size") +
   theme_minimal()
 
-ggsave(paste0(comparisondir, "/ess_Beta.png"), width = 7, height = 5, dpi = 300)
+ggsave(
+  paste0(comparisondir, "/ess_Beta.png"),
+  width = 7,
+  height = 5,
+  dpi = 300
+)
 
 # Effective samples comparison - V
 effective_samples_V <- lapply(model_list, function(x) {
@@ -155,7 +325,12 @@ bind_uneven(effective_samples_V) %>%
   ylab("Effective Sample Size") +
   theme_minimal()
 
-ggsave(paste0(comparisondir, "/ess_V.png"), width = 7, height = 5, dpi = 300)
+ggsave(
+  paste0(comparisondir, "/ess_V.png"),
+  width = 7,
+  height = 5,
+  dpi = 300
+)
 
 # Effective samples comparison - Gamma
 effective_samples_Gamma <- lapply(model_list, function(x) {
@@ -173,7 +348,12 @@ bind_uneven(effective_samples_Gamma) %>%
   ylab("Effective Sample Size") +
   theme_minimal()
 
-ggsave(paste0(comparisondir, "/ess_Gamma.png"), width = 7, height = 5, dpi = 300)
+ggsave(
+  paste0(comparisondir, "/ess_Gamma.png"),
+  width = 7,
+  height = 5,
+  dpi = 300
+)
 
 # Model mixing and convergence
 convergence <- lapply(model_list, function(x) {
@@ -194,29 +374,10 @@ bind_uneven(convergence) %>%
   xlim(0.99, 1.1) +
   theme_minimal()
 
-ggsave(paste0(comparisondir, "/convergence.png"), width = 7, height = 5, dpi = 300)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ggsave(
+  paste0(comparisondir, "/convergence.png"),
+  width = 7,
+  height = 5,
+  dpi = 300
+)
 
